@@ -1,13 +1,13 @@
+cat <<EOF > .github/workflows/commit-linter.md
 ---
 name: AI Auto-Fixer
-on: 
+on:
   pull_request:
     types: [opened, synchronize]
 
 engine: copilot
 permissions:
   contents: read
-  # ❌ УДАЛИТЕ СТРОКУ: pull-requests: write (она запрещена)
 
 safe-outputs:
   create-pull-request:
@@ -28,5 +28,6 @@ safe-outputs:
 2. **Действия:**
    - Если код идеален — ничего не делай.
    - Если есть ошибки — **ИСПРАВЬ ИХ** в коде.
-   - Используй **safe-output `create-pull-request`**, чтобы отправить исправления.
+   - Используй **safe-output create-pull-request**, чтобы отправить исправления.
    - В описании укажи, что именно ты исправил.
+EOF
