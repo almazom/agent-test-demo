@@ -22,28 +22,37 @@
 # For more information: https://github.github.com/gh-aw/introduction/overview/
 #
 #
-# gh-aw-metadata: {"schema_version":"v1","frontmatter_hash":"720ce103952b1f7fe3a564c36ef8355a98c6f365619678288381589e6130fd24"}
+# gh-aw-metadata: {"schema_version":"v1","frontmatter_hash":"8146dec357e29cedf7297da9627e4efdd7a20cb6c2ad93e40a029816dbe8b86e"}
 
 name: "AI Auto-Fixer"
-"on": push
+"on":
+  pull_request:
+    types:
+    - opened
+    - synchronize
 
 permissions: {}
 
 concurrency:
-  group: "gh-aw-${{ github.workflow }}-${{ github.ref }}"
+  group: "gh-aw-${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}"
+  cancel-in-progress: true
 
 run-name: "AI Auto-Fixer"
 
 jobs:
   activation:
     needs: pre_activation
-    if: needs.pre_activation.outputs.activated == 'true'
+    if: >
+      (needs.pre_activation.outputs.activated == 'true') && ((github.event_name != 'pull_request') || (github.event.pull_request.head.repo.id == github.repository_id))
     runs-on: ubuntu-slim
     permissions:
       contents: read
     outputs:
+      body: ${{ steps.sanitized.outputs.body }}
       comment_id: ""
       comment_repo: ""
+      text: ${{ steps.sanitized.outputs.text }}
+      title: ${{ steps.sanitized.outputs.title }}
     steps:
       - name: Setup Scripts
         uses: github/gh-aw/actions/setup@f88ec26c65cc20ebb8ceabe809c9153385945bfe # v0.46.0
@@ -74,6 +83,15 @@ jobs:
             const { setupGlobals } = require('/opt/gh-aw/actions/setup_globals.cjs');
             setupGlobals(core, github, context, exec, io);
             const { main } = require('/opt/gh-aw/actions/check_workflow_timestamp_api.cjs');
+            await main();
+      - name: Compute current body text
+        id: sanitized
+        uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
+        with:
+          script: |
+            const { setupGlobals } = require('/opt/gh-aw/actions/setup_globals.cjs');
+            setupGlobals(core, github, context, exec, io);
+            const { main } = require('/opt/gh-aw/actions/compute_text.cjs');
             await main();
       - name: Create prompt with built-in context
         env:
@@ -999,6 +1017,7 @@ jobs:
           if-no-files-found: ignore
 
   pre_activation:
+    if: (github.event_name != 'pull_request') || (github.event.pull_request.head.repo.id == github.repository_id)
     runs-on: ubuntu-slim
     outputs:
       activated: ${{ steps.check_membership.outputs.is_team_member == 'true' }}
